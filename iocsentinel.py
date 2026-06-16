@@ -302,14 +302,23 @@ def get_verdict(vt_result, abuse_result=None):
 
 def print_report(ioc, ioc_type, vt_result, abuse_result=None):
     verdict = get_verdict(vt_result, abuse_result)
-    icons = {"MALICIOUS": "🔴", "SUSPICIOUS": "🟡", "CLEAN": "🟢", "UNKNOWN": "⚪"}
+    severity, score = calculate_severity(vt_result, abuse_result)
+    mitre = map_mitre(ioc_type, verdict)
 
-    print("\n" + "="*50)
-    print(f"  IOC THREAT REPORT")
-    print("="*50)
+    icons = {
+        "MALICIOUS": "🔴",
+        "SUSPICIOUS": "🟡",
+        "CLEAN": "🟢",
+        "UNKNOWN": "⚪"
+    }
+
+    print("\n" + "=" * 50)
+    print("  IOC THREAT REPORT")
+    print("=" * 50)
     print(f"  IOC       : {ioc}")
     print(f"  Type      : {ioc_type.upper()}")
-    print("-"*50)
+    print("-" * 50)
+
     print("  [VirusTotal]")
     if "error" in vt_result:
         print(f"  Error: {vt_result['error']}")
@@ -319,7 +328,7 @@ def print_report(ioc, ioc_type, vt_result, abuse_result=None):
         print(f"  Harmless  : {vt_result['harmless']}")
 
     if abuse_result:
-        print("-"*50)
+        print("-" * 50)
         print("  [AbuseIPDB]")
         if "error" in abuse_result:
             print(f"  Error: {abuse_result['error']}")
@@ -330,11 +339,11 @@ def print_report(ioc, ioc_type, vt_result, abuse_result=None):
             print(f"  ISP           : {abuse_result['isp']}")
             print(f"  Last Reported : {abuse_result['last_reported']}")
 
-    print("-"*50)
+    print("-" * 50)
+    print(f"  SEVERITY  : {severity} ({score})")
+    print(f"  MITRE     : {mitre}")
     print(f"  VERDICT   : {icons[verdict]} {verdict}")
-    print("="*50 + "\n")
-
-
+    print("=" * 50 + "\n")
 # ─────────────────────────────────────────────
 #  VALIDATE IOC
 # ─────────────────────────────────────────────
@@ -381,9 +390,11 @@ def process_ioc(ioc):
     if ioc_type == "ip":
         abuse_result = check_abuseipdb(ioc)
     elif ioc_type == "url":
+        scan_url(ioc)
         domain = extract_domain_from_url(ioc)
-        if domain and is_valid_ip(domain):
-            abuse_result = check_abuseipdb(domain)
+        if domain:
+            if is_valid_ip(domain):
+                abuse_result = check_abuseipdb(domain)
 
     verdict = get_verdict(vt_result, abuse_result)
     ioc_cache[ioc] = (ioc_type, vt_result, abuse_result, verdict)
@@ -401,16 +412,33 @@ def export_csv(results, filename=None):
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
+
         writer.writerow([
             "IOC", "Type", "Verdict",
+            "Severity", "MITRE",
             "VT Malicious", "VT Suspicious", "VT Total Engines",
-            "Abuse Score", "Abuse Reports", "Country", "ISP", "Last Reported"
+            "Abuse Score", "Abuse Reports",
+            "Country", "ISP", "Last Reported"
         ])
+
         for row in results:
-            writer.writerow(row)
+            writer.writerow([
+                row["ioc"],
+                row["type"],
+                row["verdict"],
+                row["severity"],
+                row["mitre"],
+                row["vt_malicious"],
+                row["vt_suspicious"],
+                row["vt_total"],
+                row["abuse_score"],
+                row["abuse_reports"],
+                row["country"],
+                row["isp"],
+                row["last_reported"]
+            ])
 
-    print(f"\n✅ Report saved to: {filename}")
-
+    print(f"\n✅ CSV report saved to: {filename}")
 
 # ─────────────────────────────────────────────
 #  MODE 1: Single IOC
@@ -453,6 +481,7 @@ def mode_bulk(filepath):
     print("Note: 15s delay between valid requests (VirusTotal free tier)\n")
 
     results = []
+
     for i, ioc in enumerate(iocs, 1):
         print(f"[{i}/{len(iocs)}] Checking {ioc}...")
         ioc_type, vt_result, abuse_result, verdict = process_ioc(ioc)
@@ -461,21 +490,29 @@ def mode_bulk(filepath):
             print_report(ioc, ioc_type, vt_result, abuse_result)
 
         abuse = abuse_result or {}
-        results.append([
-            ioc, ioc_type, verdict,
-            vt_result.get("malicious", ""),
-            vt_result.get("suspicious", ""),
-            vt_result.get("total", ""),
-            abuse.get("abuse_score", ""),
-            abuse.get("total_reports", ""),
-            abuse.get("country", ""),
-            abuse.get("isp", ""),
-            abuse.get("last_reported", "")
-        ])
+
+        severity, score = calculate_severity(vt_result, abuse_result)
+        mitre = map_mitre(ioc_type, verdict)
+
+        results.append({
+            "ioc": ioc,
+            "type": ioc_type,
+            "verdict": verdict,
+            "severity": severity,
+            "mitre": mitre,
+            "vt_malicious": vt_result.get("malicious", ""),
+            "vt_suspicious": vt_result.get("suspicious", ""),
+            "vt_total": vt_result.get("total", ""),
+            "abuse_score": abuse.get("abuse_score", ""),
+            "abuse_reports": abuse.get("total_reports", ""),
+            "country": abuse.get("country", ""),
+            "isp": abuse.get("isp", ""),
+            "last_reported": abuse.get("last_reported", "")
+        })
 
     export_csv(results)
-
-
+    export_json(results)
+    export_html(results)
 # ─────────────────────────────────────────────
 #  MODE 3: Extract IOCs from raw text
 # ─────────────────────────────────────────────
@@ -504,6 +541,7 @@ def mode_extract():
         return
 
     results = []
+
     for i, ioc in enumerate(iocs, 1):
         print(f"\n[{i}/{len(iocs)}] Checking {ioc}...")
         ioc_type, vt_result, abuse_result, verdict = process_ioc(ioc)
@@ -512,20 +550,29 @@ def mode_extract():
             print_report(ioc, ioc_type, vt_result, abuse_result)
 
         abuse = abuse_result or {}
-        results.append([
-            ioc, ioc_type, verdict,
-            vt_result.get("malicious", ""),
-            vt_result.get("suspicious", ""),
-            vt_result.get("total", ""),
-            abuse.get("abuse_score", ""),
-            abuse.get("total_reports", ""),
-            abuse.get("country", ""),
-            abuse.get("isp", ""),
-            abuse.get("last_reported", "")
-        ])
+
+        severity, score = calculate_severity(vt_result, abuse_result)
+        mitre = map_mitre(ioc_type, verdict)
+
+        results.append({
+            "ioc": ioc,
+            "type": ioc_type,
+            "verdict": verdict,
+            "severity": severity,
+            "mitre": mitre,
+            "vt_malicious": vt_result.get("malicious", ""),
+            "vt_suspicious": vt_result.get("suspicious", ""),
+            "vt_total": vt_result.get("total", ""),
+            "abuse_score": abuse.get("abuse_score", ""),
+            "abuse_reports": abuse.get("total_reports", ""),
+            "country": abuse.get("country", ""),
+            "isp": abuse.get("isp", ""),
+            "last_reported": abuse.get("last_reported", "")
+        })
 
     export_csv(results)
-
+    export_json(results)
+    export_html(results)
 
 # ─────────────────────────────────────────────
 #  MAIN MENU

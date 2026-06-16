@@ -1,6 +1,6 @@
 # IOCSentinel — Threat Intelligence Automation Tool
 
-IOCSentinel is a Python-based command-line threat intelligence tool designed to automate the validation, enrichment, and classification of Indicators of Compromise (IOCs).
+IOCSentinel is a Python-based command-line threat intelligence tool designed to automate the validation, analysis, and classification of Indicators of Compromise (IOCs).
 
 It supports IPs, domains, URLs, and file hashes by integrating multiple threat intelligence sources such as VirusTotal, AbuseIPDB, and URLScan to simplify IOC triage and reporting.
 
@@ -17,19 +17,14 @@ It supports IPs, domains, URLs, and file hashes by integrating multiple threat i
 * **Raw IOC Extraction**
   Automatically extract IOCs from emails, logs, or threat reports.
 
-* **Multi-Source Threat Intelligence Enrichment**
+* **Multi-Source Threat Intelligence Analysis**
 
   * VirusTotal
   * AbuseIPDB
   * URLScan
 
 * **Severity Scoring**
-  Classifies threats as:
-
-  * Low
-  * Medium
-  * High
-  * Critical
+  Calculates threat severity using VirusTotal detections and AbuseIPDB confidence scores.
 
 * **MITRE ATT&CK Mapping**
   Maps malicious IOCs to related ATT&CK techniques.
@@ -38,7 +33,7 @@ It supports IPs, domains, URLs, and file hashes by integrating multiple threat i
   Prevents duplicate API calls for repeated IOCs.
 
 * **Multi-format Reporting**
-  Export reports in:
+  Automatically exports reports in:
 
   * CSV
   * JSON
@@ -143,12 +138,36 @@ Paste logs, phishing emails, or reports to auto-extract IOCs.
 ```text
 IOC: 185.220.101.45
 Type: IP
-VirusTotal: 17 malicious detections
-AbuseIPDB Score: 100%
-Severity: CRITICAL
+Malicious : 17 / 94 engines
+Suspicious: 2
+Abuse Score: 100%
+Severity: CRITICAL (365)
 MITRE: T1071 - Application Layer Protocol
 Verdict: MALICIOUS
 ```
+
+---
+
+## Severity Scoring Logic
+
+Severity is calculated using:
+
+* VirusTotal malicious detections
+* VirusTotal suspicious detections
+* AbuseIPDB abuse confidence score
+
+Formula:
+
+```text
+Score = (Malicious × 15) + (Suspicious × 5) + Abuse Score
+```
+
+Severity Levels:
+
+* **0–20** → Low
+* **21–50** → Medium
+* **51–80** → High
+* **81+** → Critical
 
 ---
 
@@ -175,7 +194,7 @@ The tool automatically enforces delays during bulk scans to avoid rate limiting.
 
 * Shodan integration
 * GeoIP enrichment
-* PDF reporting
+* SIEM integration
 * Threat feed ingestion
 * IOC reputation history tracking
 
@@ -195,6 +214,7 @@ K Sai Chaitanya
 
 Focused on Security Operations, Threat Intelligence, Pentesting, and Security Automation.
 
+GitHub: https://github.com/SaiChaitanya1313
 
-GitHub: [SaiChaitanya1313](https://github.com/SaiChaitanya1313)
-LinkedIn: [Sai Chaitanya Kondapalli](https://www.linkedin.com/in/sai-chaitanya-kondapalli-b7034325a)
+
+LinkedIn: https://www.linkedin.com/in/sai-chaitanya-kondapalli-b7034325a
