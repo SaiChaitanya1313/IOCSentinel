@@ -1,0 +1,5 @@
+config.py
+__pycache__/
+*.csv
+*.json
+*.html
