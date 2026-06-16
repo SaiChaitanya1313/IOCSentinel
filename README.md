@@ -41,6 +41,16 @@ It supports IPs, domains, URLs, and file hashes by integrating multiple threat i
 
 ---
 
+## Screenshots
+
+### Live IOC Analysis
+
+![Live IOC Analysis](assets/live-analysis.png)
+
+### Automated HTML Reporting
+
+![HTML Report](assets/html-report.png)
+
 ## Supported IOC Types
 
 | IOC Type   | Supported Sources     |

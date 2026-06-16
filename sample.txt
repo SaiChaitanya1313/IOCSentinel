@@ -1,0 +1,10 @@
+185.220.101.45
+45.77.23.91
+103.56.148.22
+malicious-update-check.com
+secure-auth-login.net
+d41d8cd98f00b204e9800998ecf8427e
+44d88612fea8a8f36de82e1278abb02f
+5d41402abc4b2a76b9719d911017c592
+https://secure-auth-login.net/login
+https://malicious-update-check.com/update
